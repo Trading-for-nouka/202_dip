@@ -1,0 +1,35 @@
+name: Dip Scan
+
+on:
+  schedule:
+    - cron: '13 7 * * 1-5'  # 平日 16:13 JST
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install yfinance pandas numpy ta requests
+      - name: Run Scan
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python scan_dip.py
+      - name: Commit selected_positions_dip.json
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          if [ -f selected_positions_dip.json ]; then
+            git add selected_positions_dip.json
+            if ! git diff --cached --quiet; then
+              git commit -m "Update selected_positions_dip [skip ci]"
+              git push
+            fi
+          fi
