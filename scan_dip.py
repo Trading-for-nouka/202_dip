@@ -8,12 +8,12 @@ from strategy_params import calc_dip_levels
 from claude_comment import generate_comments_batch
 
 # --- 設定 ---
-OWNER = "trading-for-nouka"   # ← 変更
-REPO = "102_market_phase"     # ← 変更
+OWNER = "trading-for-nouka"
+REPO = "102_market_phase"
 FILE_PATH = "market_phase.json"
 TOKEN = os.environ.get("PAT_TOKEN")
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
-UNIVERSE_FILE = "universe230.csv"  # ← 変更
+UNIVERSE_FILE = "universe230.csv"
 JSON_FILE = "selected_positions_dip.json"
 
 # --- 乖離率の許容範囲（MA25から何%以内を押し目とみなすか）---
@@ -68,7 +68,7 @@ def scan_dip():
         return
 
     if not os.path.exists(UNIVERSE_FILE):
-        print("❌ universe230.csv が見つかりません。")  # ← 変更
+        print("❌ universe230.csv が見つかりません。")
         return
 
     # --- 銘柄リスト読み込み ---
@@ -243,6 +243,8 @@ def scan_dip():
                 "entry_date":    today_str,
                 "entry_price":   r["price"],
                 "highest_price": r["price"],
+                "stop_loss":     r["stop_loss"],
+                "strategy":      "dip",
             }
             for r in results
         ]
