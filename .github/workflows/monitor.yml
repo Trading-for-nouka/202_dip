@@ -1,0 +1,35 @@
+name: Dip Monitor
+
+on:
+  schedule:
+    - cron: '6 23 * * 1-5'  # 平日 08:06 JST
+    - cron: '49 6 * * 1-5'  # 平日 15:49 JST
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install yfinance pandas requests
+      - name: Run Monitor
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: python monitor.py
+      - name: Commit positions.json
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          if [ -f positions.json ]; then
+            git add positions.json
+            if ! git diff --cached --quiet; then
+              git commit -m "Update positions [skip ci]"
+              git push
+            fi
+          fi
