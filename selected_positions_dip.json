@@ -1,0 +1,11 @@
+[
+  {
+    "ticker": "4523.T",
+    "name": "エーザイ",
+    "entry_date": "2026-04-15",
+    "entry_price": 5030.0,
+    "highest_price": 5030.0,
+    "stop_loss": 4482,
+    "strategy": "dip"
+  }
+]
