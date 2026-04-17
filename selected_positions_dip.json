@@ -25,5 +25,14 @@
     "highest_price": 967.1,
     "stop_loss": 870,
     "strategy": "dip"
+  },
+  {
+    "ticker": "8572.T",
+    "name": "アコム",
+    "entry_date": "2026-04-17",
+    "entry_price": 484.0,
+    "highest_price": 484.0,
+    "stop_loss": 437,
+    "strategy": "dip"
   }
 ]
