@@ -1,9 +1,9 @@
 name: Dip Monitor
 
 on:
-  schedule:
-    - cron: '6 23 * * 1-5'  # 平日 08:06 JST
-    - cron: '49 6 * * 1-5'  # 平日 15:49 JST
+  #schedule:
+    #- cron: '6 23 * * 1-5'  # 平日 08:06 JST
+    #- cron: '49 6 * * 1-5'  # 平日 15:49 JST
   workflow_dispatch:
 
 jobs:
