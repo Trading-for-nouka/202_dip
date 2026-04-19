@@ -235,6 +235,13 @@ def scan_dip():
         send_discord(msg)
         print(f"✅ Discordへ通知を送信しました。({len(results)}銘柄)")
 
+        for r in results[:5]:
+            send_discord(
+                f"🛒 **{r['name']}（{r['ticker']}）**\n"
+                f"　 📌 {r['entry_low']}〜{r['entry_high']}円 | 🛑 {r['stop_loss']}円\n"
+                f"📎 {r['ticker']}|dip|{r['price']}|{r['stop_loss']}|{r['name']}"
+            )
+
         today_str = datetime.now().strftime("%Y-%m-%d")
         new_entries = [
             {
