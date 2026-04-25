@@ -13,12 +13,19 @@ REPO = "102_market_phase"
 FILE_PATH = "market_phase.json"
 TOKEN = os.environ.get("PAT_TOKEN")
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
-UNIVERSE_FILE = "universe230.csv"
+UNIVERSE_FILE = "universe496.csv"   # FIX: 230→496
 JSON_FILE = "selected_positions_dip.json"
 
-# --- 乖離率の許容範囲（MA25から何%以内を押し目とみなすか）---
-DEV_LOWER = -5.0
-DEV_UPPER =  3.0
+# --- 乖離率の許容範囲（バックテスト最優秀値）---
+DEV_LOWER = -6.0   # FIX: -5.0→-6.0（lower_dev=-0.06）
+DEV_UPPER =  2.0   # FIX:  3.0→ 2.0（upper_dev=+0.02）
+
+# --- 売買代金フィルター（TOPIX区分別）---
+TURNOVER_FILTER = {
+    "TOPIX Core30":  0,     # 無制限
+    "TOPIX Large70": 5e8,   # 5億円以上
+    "TOPIX Mid400":  1e8,   # 1億円以上
+}
 
 
 def get_market_phase():
@@ -68,7 +75,7 @@ def scan_dip():
         return
 
     if not os.path.exists(UNIVERSE_FILE):
-        print("❌ universe230.csv が見つかりません。")
+        print(f"❌ {UNIVERSE_FILE} が見つかりません。")
         return
 
     # --- 銘柄リスト読み込み ---
@@ -85,8 +92,8 @@ def scan_dip():
             break
 
     if df_univ is None or df_univ.empty:
-        print("❌ universe230.csv の読み込みに失敗しました。")
-        send_discord("❌ 【押し目スキャン】universe230.csv の読み込みに失敗しました。")
+        print(f"❌ {UNIVERSE_FILE} の読み込みに失敗しました。")
+        send_discord(f"❌ 【押し目スキャン】{UNIVERSE_FILE} の読み込みに失敗しました。")
         return
 
     df_univ.columns = df_univ.columns.str.strip()
@@ -97,15 +104,16 @@ def scan_dip():
         code = str(row.iloc[0]).split('.')[0].strip()
         if code and code.isdigit():
             targets.append({
-                "ticker": f"{code}.T",
-                "name": str(row.iloc[1]),
-                "sector": str(row.iloc[2])
+                "ticker":     f"{code}.T",
+                "name":       str(row.iloc[1]),
+                "sector":     str(row.iloc[2]),
+                "index_type": str(row.iloc[3]) if len(row) >= 4 else "TOPIX Mid400",  # FIX: 追加
             })
 
     print(f"🔍 {len(targets)} 銘柄の判定を開始... (Phase: {phase})")
 
     if not targets:
-        msg = "❌ 【押し目スキャン】universe230.csv から有効な銘柄を取得できませんでした。"
+        msg = f"❌ 【押し目スキャン】{UNIVERSE_FILE} から有効な銘柄を取得できませんでした。"
         print(msg)
         send_discord(msg)
         return
@@ -173,8 +181,14 @@ def scan_dip():
             vol_ma20  = float(volume.rolling(20).mean().iloc[-1])
             vol_today = float(volume.iloc[-1])
             rvol = vol_today / vol_ma20 if vol_ma20 > 0 else 0
-            if rvol < 1.0:
+            if rvol < 0.8:   # FIX: 1.0→0.8（rvol_threshold=0.8）
                 print(f"  {ticker} スキップ（出来高不足: RVOL={rvol:.2f}）")
+                continue
+
+            # --- 売買代金フィルター（FIX: 追加）---
+            turnover_min = TURNOVER_FILTER.get(item["index_type"], 1e8)
+            if curr_close * vol_today < turnover_min:
+                print(f"  {ticker} スキップ（売買代金不足）")
                 continue
 
             if is_near_earnings(ticker):
@@ -229,7 +243,7 @@ def scan_dip():
             if r.get("comment"):
                 msg += f"　 💬 {r['comment']}\n"
             msg += "\n"
-        msg += f"✅ 該当: {len(results)}銘柄"
+        msg += f"✅ 該当: {len(results)}銘柄\n"
         msg += f"🕒 {jst.strftime('%Y/%m/%d %H:%M')} JST\n"
 
         send_discord(msg)
