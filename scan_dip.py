@@ -122,8 +122,11 @@ def scan_dip():
             bench.columns = bench.columns.get_level_values(0)
         if len(bench) >= 21:
             bench_return_20 = float(bench["Close"].pct_change(20).iloc[-1])
-    except:
-        pass
+    except Exception as e:
+        print(f"⚠️ ベンチマーク取得失敗: {e}")
+
+    if bench_return_20 is None:
+        print("⚠️ ベンチマーク取得失敗のためRSフィルターをスキップします。結果は参考値として扱ってください。")
 
     # --- 一括ダウンロード（496銘柄を1回で取得）---
     tickers = [item["ticker"] for item in targets]
@@ -136,7 +139,6 @@ def scan_dip():
     for item in targets:
         ticker = item["ticker"]
         try:
-            # データが取得できているか確認
             if ticker not in data.columns.get_level_values(0):
                 print(f"  ✗ {ticker} スキップ: データなし")
                 continue
@@ -157,17 +159,15 @@ def scan_dip():
             curr_ma5   = float(ma5.iloc[-1])
             prev_ma25  = float(ma25.iloc[-5])
 
-            is_uptrend = curr_ma25 > prev_ma25
-            if not is_uptrend:
+            if not (curr_ma25 > prev_ma25):
                 continue
 
-            recent_low = float(low.tail(3).min())
+            recent_low   = float(low.tail(3).min())
             is_near_ma25 = curr_ma25 * 0.97 <= recent_low <= curr_ma25 * 1.03
             if not is_near_ma25:
                 continue
 
-            is_rebounding = curr_close > float(curr_ma5)
-            if not is_rebounding:
+            if not (curr_close > curr_ma5):
                 continue
 
             dev = ((curr_close - curr_ma25) / curr_ma25) * 100
@@ -230,8 +230,37 @@ def scan_dip():
     if results:
         results = sorted(results, key=lambda x: abs(x["dev"]))
 
+        # JSON保存をコメント生成の前に実施（APIエラーで結果が消えないように）
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        new_entries = [
+            {
+                "ticker":        r["ticker"],
+                "name":          r["name"],
+                "entry_date":    today_str,
+                "entry_price":   r["price"],
+                "highest_price": r["price"],
+                "stop_loss":     r["stop_loss"],
+                "strategy":      "dip",
+            }
+            for r in results
+        ]
+        existing = []
+        if os.path.exists(JSON_FILE):
+            try:
+                with open(JSON_FILE, "r", encoding="utf-8") as f:
+                    existing = json.load(f)
+            except (json.JSONDecodeError, ValueError):
+                existing = []
+        existing_tickers = {p["ticker"] for p in existing}
+        added = [e for e in new_entries if e["ticker"] not in existing_tickers]
+        existing.extend(added)
+        with open(JSON_FILE, "w", encoding="utf-8") as f:
+            json.dump(existing, f, ensure_ascii=False, indent=2)
+        print(f"💾 {JSON_FILE} に {len(added)} 件追記しました（重複スキップ: {len(new_entries) - len(added)} 件）")
+
+        # コメント生成（失敗してもランキング結果は維持）
         print("💬 Claude APIコメント生成中...")
-        results = generate_comments_batch("dip", results, max_count=5)
+        results = generate_comments_batch("dip", results, max_count=5) or results
 
         msg  = f"{p_icon} **【押し目スキャン】反発の兆し ({phase})**\n"
         msg += "━━━━━━━━━━━━━━━━━━━━\n"
@@ -259,36 +288,6 @@ def scan_dip():
                 f"　 📌 {r['entry_low']}〜{r['entry_high']}円 | 🛑 {r['stop_loss']}円\n"
                 f"📎 {r['ticker']}|dip|{r['price']}|{r['stop_loss']}|{r['name']}"
             )
-
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        new_entries = [
-            {
-                "ticker":        r["ticker"],
-                "name":          r["name"],
-                "entry_date":    today_str,
-                "entry_price":   r["price"],
-                "highest_price": r["price"],
-                "stop_loss":     r["stop_loss"],
-                "strategy":      "dip",
-            }
-            for r in results
-        ]
-
-        existing = []
-        if os.path.exists(JSON_FILE):
-            try:
-                with open(JSON_FILE, "r", encoding="utf-8") as f:
-                    existing = json.load(f)
-            except (json.JSONDecodeError, ValueError):
-                existing = []
-
-        existing_tickers = {p["ticker"] for p in existing}
-        added = [e for e in new_entries if e["ticker"] not in existing_tickers]
-        existing.extend(added)
-
-        with open(JSON_FILE, "w", encoding="utf-8") as f:
-            json.dump(existing, f, ensure_ascii=False, indent=2)
-        print(f"💾 {JSON_FILE} に {len(added)} 件追記しました（重複スキップ: {len(new_entries) - len(added)} 件）")
     else:
         msg = (
             f"{p_icon} **【押し目スキャン】({phase})**\n"
