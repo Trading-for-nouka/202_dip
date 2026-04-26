@@ -13,18 +13,18 @@ REPO = "102_market_phase"
 FILE_PATH = "market_phase.json"
 TOKEN = os.environ.get("PAT_TOKEN")
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
-UNIVERSE_FILE = "universe496.csv"   # FIX: 230→496
+UNIVERSE_FILE = "universe496.csv"
 JSON_FILE = "selected_positions_dip.json"
 
 # --- 乖離率の許容範囲（バックテスト最優秀値）---
-DEV_LOWER = -6.0   # FIX: -5.0→-6.0（lower_dev=-0.06）
-DEV_UPPER =  2.0   # FIX:  3.0→ 2.0（upper_dev=+0.02）
+DEV_LOWER = -6.0
+DEV_UPPER =  2.0
 
 # --- 売買代金フィルター（TOPIX区分別）---
 TURNOVER_FILTER = {
-    "TOPIX Core30":  0,     # 無制限
-    "TOPIX Large70": 5e8,   # 5億円以上
-    "TOPIX Mid400":  1e8,   # 1億円以上
+    "TOPIX Core30":  0,
+    "TOPIX Large70": 5e8,
+    "TOPIX Mid400":  1e8,
 }
 
 
@@ -44,7 +44,6 @@ def get_market_phase():
 
 
 def is_near_earnings(ticker, days=5):
-    """今後5日以内に決算発表がある場合はTrueを返す"""
     try:
         stock = yf.Ticker(ticker)
         cal = stock.calendar
@@ -97,7 +96,6 @@ def scan_dip():
         return
 
     df_univ.columns = df_univ.columns.str.strip()
-    print(f"   列名: {df_univ.columns.tolist()}")
 
     targets = []
     for _, row in df_univ.iterrows():
@@ -107,10 +105,8 @@ def scan_dip():
                 "ticker":     f"{code}.T",
                 "name":       str(row.iloc[1]),
                 "sector":     str(row.iloc[2]),
-                "index_type": str(row.iloc[3]) if len(row) >= 4 else "TOPIX Mid400",  # FIX: 追加
+                "index_type": str(row.iloc[3]) if len(row) >= 4 else "TOPIX Mid400",
             })
-
-    print(f"🔍 {len(targets)} 銘柄の判定を開始... (Phase: {phase})")
 
     if not targets:
         msg = f"❌ 【押し目スキャン】{UNIVERSE_FILE} から有効な銘柄を取得できませんでした。"
@@ -121,7 +117,7 @@ def scan_dip():
     # --- ベンチマーク（TOPIX）のリターン取得 ---
     bench_return_20 = None
     try:
-        bench = yf.download("1306.T", period="2mo", auto_adjust=True, progress=False)
+        bench = yf.download("1306.T", period="4mo", auto_adjust=True, progress=False)
         if isinstance(bench.columns, pd.MultiIndex):
             bench.columns = bench.columns.get_level_values(0)
         if len(bench) >= 21:
@@ -129,14 +125,23 @@ def scan_dip():
     except:
         pass
 
+    # --- 一括ダウンロード（496銘柄を1回で取得）---
+    tickers = [item["ticker"] for item in targets]
+    print(f"📥 データ取得中... {len(tickers)}銘柄")
+    data = yf.download(tickers, period="4mo", auto_adjust=True, progress=False, group_by="ticker")
+    print(f"🚀 スキャン開始 (Phase: {phase})...")
+
     results = []
 
     for item in targets:
         ticker = item["ticker"]
         try:
-            df = yf.download(ticker, period="4mo", auto_adjust=True, progress=False)
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
+            # データが取得できているか確認
+            if ticker not in data.columns.get_level_values(0):
+                print(f"  ✗ {ticker} スキップ: データなし")
+                continue
+
+            df = data[ticker].copy().dropna()
             if len(df) < 60:
                 continue
 
@@ -181,11 +186,10 @@ def scan_dip():
             vol_ma20  = float(volume.rolling(20).mean().iloc[-1])
             vol_today = float(volume.iloc[-1])
             rvol = vol_today / vol_ma20 if vol_ma20 > 0 else 0
-            if rvol < 0.8:   # FIX: 1.0→0.8（rvol_threshold=0.8）
+            if rvol < 0.8:
                 print(f"  {ticker} スキップ（出来高不足: RVOL={rvol:.2f}）")
                 continue
 
-            # --- 売買代金フィルター（FIX: 追加）---
             turnover_min = TURNOVER_FILTER.get(item["index_type"], 1e8)
             if curr_close * vol_today < turnover_min:
                 print(f"  {ticker} スキップ（売買代金不足）")
