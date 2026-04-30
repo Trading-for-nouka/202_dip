@@ -22,14 +22,14 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python monitor.py
-      - name: Commit positions.json
+      - name: Commit and push dip_positions.json
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          if [ -f positions.json ]; then
-            git add positions.json
-            if ! git diff --cached --quiet; then
-              git commit -m "Update positions [skip ci]"
-              git push
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            if [ -f dip_positions.json ]; then
+                git add dip_positions.json
+                if ! git diff --cached --quiet; then
+                    git commit -m "Update dip_positions [skip ci]"
+                    git push
+                fi
             fi
-          fi
