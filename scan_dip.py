@@ -290,7 +290,7 @@ def scan_dip():
             )
     else:
         msg = (
-            f"{p_icon} **【押し目スキャン】({phase})**\n"
+            f"[202_dip] {p_icon} **【押し目スキャン】({phase})**\n"
             f"🕒 {jst.strftime('%Y/%m/%d %H:%M')} JST\n"
             f"ℹ️ 条件に合致する銘柄はありませんでした。"
         )
