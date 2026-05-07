@@ -262,7 +262,7 @@ def scan_dip():
         print("💬 Claude APIコメント生成中...")
         results = generate_comments_batch("dip", results, max_count=5) or results
 
-        msg  = f"{p_icon} **【押し目スキャン】反発の兆し ({phase})**\n"
+        msg  = f"[202_dip] {p_icon} **【押し目スキャン】反発の兆し ({phase})**\n"
         msg += "━━━━━━━━━━━━━━━━━━━━\n"
         for r in results:
             rs_str   = f"RS: {r['rs']:+.1f}%" if r["rs"] is not None else "RS: -"
