@@ -147,7 +147,7 @@ def monitor():
 
     jst = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=9)))
     if exit_messages or status_messages:
-        msg = f"📉 **【{phase}】監視レポート**\n"
+        msg = f"[202_dip] 📉 **【{phase}】監視レポート**\n"
         if exit_messages: msg += "\n⚠️ **【決済推奨】**\n" + "\n".join(exit_messages)
         if status_messages: msg += "\n💰 **【保有中】**\n" + "\n".join(status_messages)
         msg += f"\n🕒 {jst.strftime('%Y/%m/%d %H:%M')} JST"
