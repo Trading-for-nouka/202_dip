@@ -2,17 +2,11 @@ import yfinance as yf
 import pandas as pd
 import os
 import json
-import requests
 from datetime import datetime, timedelta, timezone
 from strategy_params import calc_dip_levels
 from claude_comment import generate_comments_batch
+from utils import get_market_phase, send_discord
 
-# --- 設定 ---
-OWNER = "trading-for-nouka"
-REPO = "102_market_phase"
-FILE_PATH = "market_phase.json"
-TOKEN = os.environ.get("PAT_TOKEN")
-DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
 UNIVERSE_FILE = "universe496.csv"
 JSON_FILE = "selected_positions_dip.json"
 
@@ -28,21 +22,6 @@ TURNOVER_FILTER = {
 }
 
 
-def get_market_phase():
-    url = f"https://api.github.com/repos/{OWNER}/{REPO}/contents/{FILE_PATH}"
-    headers = {
-        "Authorization": f"token {TOKEN}" if TOKEN else "",
-        "Accept": "application/vnd.github.v3.raw"
-    }
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        if response.status_code == 200:
-            return response.json().get("phase", "NEUTRAL")
-    except:
-        pass
-    return "NEUTRAL"
-
-
 def is_near_earnings(ticker, days=5):
     try:
         stock = yf.Ticker(ticker)
@@ -55,20 +34,15 @@ def is_near_earnings(ticker, days=5):
         today    = datetime.now().date()
         deadline = today + timedelta(days=days)
         return today <= earnings_date <= deadline
-    except:
+    except Exception:
         return False
-
-
-def send_discord(message):
-    if DISCORD_WEBHOOK:
-        requests.post(DISCORD_WEBHOOK, json={"content": message})
 
 
 def scan_dip():
     phase = get_market_phase()
 
     if phase in ["RISK_OFF", "CRASH"]:
-        msg = f"🚫 **【押し目スキャン】{phase} モードのため停止中**"
+        msg = f"[202_dip] 🚫 **【押し目スキャン】{phase} モードのため停止中**"
         print(msg)
         send_discord(msg)
         return
@@ -92,7 +66,7 @@ def scan_dip():
 
     if df_univ is None or df_univ.empty:
         print(f"❌ {UNIVERSE_FILE} の読み込みに失敗しました。")
-        send_discord(f"❌ 【押し目スキャン】{UNIVERSE_FILE} の読み込みに失敗しました。")
+        send_discord(f"[202_dip] ❌ 【押し目スキャン】{UNIVERSE_FILE} の読み込みに失敗しました。")
         return
 
     df_univ.columns = df_univ.columns.str.strip()
@@ -109,7 +83,7 @@ def scan_dip():
             })
 
     if not targets:
-        msg = f"❌ 【押し目スキャン】{UNIVERSE_FILE} から有効な銘柄を取得できませんでした。"
+        msg = f"[202_dip] ❌ 【押し目スキャン】{UNIVERSE_FILE} から有効な銘柄を取得できませんでした。"
         print(msg)
         send_discord(msg)
         return
@@ -254,8 +228,10 @@ def scan_dip():
         existing_tickers = {p["ticker"] for p in existing}
         added = [e for e in new_entries if e["ticker"] not in existing_tickers]
         existing.extend(added)
-        with open(JSON_FILE, "w", encoding="utf-8") as f:
+        tmp_path = JSON_FILE + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, JSON_FILE)
         print(f"💾 {JSON_FILE} に {len(added)} 件追記しました（重複スキップ: {len(new_entries) - len(added)} 件）")
 
         # コメント生成（失敗してもランキング結果は維持）
@@ -284,7 +260,7 @@ def scan_dip():
 
         for r in results[:5]:
             send_discord(
-                f"🛒 **{r['name']}（{r['ticker']}）**\n"
+                f"[202_dip] 🛒 **{r['name']}（{r['ticker']}）**\n"
                 f"　 📌 {r['entry_low']}〜{r['entry_high']}円 | 🛑 {r['stop_loss']}円\n"
                 f"📎 {r['ticker']}|dip|{r['price']}|{r['stop_loss']}|{r['name']}"
             )
