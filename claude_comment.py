@@ -3,7 +3,6 @@
 # scan.py / scan_dip.py から呼び出す
 
 import os
-import json
 import requests
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
@@ -45,18 +44,18 @@ RS(対TOPIX): {signal.get('rs', 'N/A')}%
 利確目標:       {signal['target']}円
 保有期間目安:   {signal['hold_days']}日
 
-【バックテスト実績（2015-2025）】
+【バックテスト実績（2016-2025）】
 """.strip()
 
     if strategy == "breakout":
         base += f"""
-戦略概要: 10日高値ブレイクアウト・出来高急増・RSフィルター通過
-勝率: 53% / PF: 1.25 / 平均保有: 21日
+戦略概要: 7日高値ブレイクアウト・出来高急増・RSフィルター通過
+勝率: 47.7% / PF: 1.67 / 平均保有: 21日
 """
     elif strategy == "dip":
         base += f"""
 戦略概要: MA25近辺への押し目・反発確認・RSフィルター通過
-勝率: 53.5% / PF: 1.25 / 平均保有: 10日 / 平均リターン: +0.427%
+勝率: 51.3% / PF: 1.55 / 平均保有: 15日
 """
 
     base += "\n銘柄の直近ニュース・決算・材料をweb検索で確認してから、上記の形式でコメントを生成してください。"
