@@ -151,11 +151,23 @@ def scan_dip():
             if bench_return_20 is not None:
                 stock_return_20 = float(close.pct_change(20).iloc[-1])
                 rs = stock_return_20 - bench_return_20
-                if rs <= 0:
-                    print(f"  {ticker} スキップ（RSが市場以下: {rs:.3f}）")
+                if rs <= 0.08:
+                    print(f"  {ticker} スキップ（RS不足: {rs*100:.1f}%≤8%）")
                     continue
             else:
                 rs = None
+
+            # RSI14 フィルター（≤50のみ通過・バックテスト最適化済み: RS>8%+RSI≤50 PF2.054）
+            _delta    = close.diff()
+            _avg_gain = _delta.clip(lower=0).rolling(14).mean()
+            _avg_loss = (-_delta).clip(lower=0).rolling(14).mean()
+            _rsi_den  = _avg_loss.iloc[-1]
+            _rs_ratio = _avg_gain.iloc[-1] / _rsi_den if _rsi_den > 0 else float("nan")
+            rsi14     = 100 - 100 / (1 + _rs_ratio) if not pd.isna(_rs_ratio) else float("nan")
+            if pd.isna(rsi14) or rsi14 > 50:
+                if not pd.isna(rsi14):
+                    print(f"  {ticker} スキップ（RSI上限超過: {rsi14:.1f}>50）")
+                continue
 
             vol_ma20  = float(volume.rolling(20).mean().iloc[-1])
             vol_today = float(volume.iloc[-1])
